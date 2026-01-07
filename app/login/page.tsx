@@ -18,13 +18,14 @@ export default function LoginPage() {
 
     try {
       await login(username, password);
-
       window.dispatchEvent(new Event("auth-change"));
-      
-      router.push("/summarizer"); // redirect after successful login
+      router.push("/summarizer");
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-      else setError("Unknown error occurred");
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Unknown error occurred");
+      }
     } finally {
       setLoading(false);
     }
@@ -34,6 +35,7 @@ export default function LoginPage() {
     <div className="p-4 max-w-md mx-auto">
       <h1 className="text-2xl font-bold mb-4">Login</h1>
       {error && <p className="text-red-500 mb-2">{error}</p>}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="text"
