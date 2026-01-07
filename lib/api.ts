@@ -31,33 +31,42 @@ export async function login(username: string, password: string) {
     body: JSON.stringify({ username, password }),
     credentials: "include",
   });
+
   if (!res.ok) {
-    throw new Error(`Login failed: ${res.statusText}`);
+    const { error } = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(`Login failed: ${error}`);
   }
+
   return res.json();
 }
 
-export async function register(username: string, password: string) {
+export async function register(username: string, password: string, email: string) {
   const res = await fetch(`${API_BASE}/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, email }),
     credentials: "include",
   });
+
   if (!res.ok) {
-    throw new Error(`Registration failed: ${res.statusText}`);
+    const { error } = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(`Registration failed: ${error}`);
   }
+
   return res.json();
 }
+
 
 export async function logout() {
   const res = await fetch(`${API_BASE}/logout`, {
     method: "POST",
     credentials: "include",
   });
+
   if (!res.ok) {
     throw new Error(`Logout failed: ${res.statusText}`);
   }
+
   return res.json();
 }
 
@@ -69,8 +78,10 @@ export async function summarizeDocument(request: SummarizeRequest) {
     body: JSON.stringify(request),
     credentials: "include",
   });
+
   if (!res.ok) {
     throw new Error(`Summarization failed: ${res.statusText}`);
   }
+
   return res.json();
 }

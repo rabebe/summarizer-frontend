@@ -17,3 +17,20 @@ export async function checkAuth(): Promise<boolean> {
     return false;
   }
 }
+
+export async function register(username: string, password: string, email: string) {
+  const res = await fetch(`${API_BASE}/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password, email }),
+    credentials: "include",
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || "Registration failed");
+  }
+
+  return data;
+}
