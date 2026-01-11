@@ -67,6 +67,35 @@ export async function register(username: string, password: string, email: string
   return res.json();
 }
 
+export async function verifyEmail(token: string) {
+  const res = await fetch(`${API_BASE}/verify?token=${token}`, {
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(data.error || "Email verification failed");
+  }
+
+  return res.json();
+}
+
+export async function resendVerification(email: string) {
+  const res = await fetch(`${API_BASE}/resend-verification`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(data.error || "Failed to resend verification email");
+  }
+
+  return res.json();
+}
+
 export async function logout() {
   const res = await fetch(`${API_BASE}/logout`, {
     method: "POST",
