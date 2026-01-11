@@ -7,11 +7,12 @@ import QuotaBadge from "./QuotaBadge";
 import SummaryOutput from "./SummaryOutput";
 import SummaryStream from "./SummaryStream";
 import { useQuota } from "@/hooks/useQuota";
+import { StreamEvent } from "@/hooks/useSummarize";
 
 interface DraftEntry {
   summary: string;
   critique: string;
-  score: string | number;
+  score: number;
 }
 
 export default function SummarizerPage() {
@@ -19,41 +20,47 @@ export default function SummarizerPage() {
   const [drafts, setDrafts] = useState<DraftEntry[]>([]);
   const [finalSummary, setFinalSummary] = useState("");
   const [finalCritique, setFinalCritique] = useState("");
-  const [score, setScore] = useState<string | number>("N/A");
+  const [score, setScore] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
-  const MAX_REFINEMENT_STEPS = 3;
-  const { stepsTaken, maxSteps: quotaMax, refreshQuota } = useQuota(MAX_REFINEMENT_STEPS);
+  const { remaining, limit, loading: quotaLoading, refreshQuota, decrementLocalQuota } = useQuota(3);
   const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
-  // --- Load persisted data from localStorage ---
+  // --- Hydrate from localStorage ---
   useEffect(() => {
-    const savedDoc = localStorage.getItem("refinebot_doc");
-    const savedSummary = localStorage.getItem("refinebot_final");
-    const savedCritique = localStorage.getItem("refinebot_critique");
-    const savedScore = localStorage.getItem("refinebot_score");
+    if (typeof window === "undefined") return;
 
-    if (savedDoc) setDocument(savedDoc);
-    if (savedSummary) setFinalSummary(savedSummary);
-    if (savedCritique) setFinalCritique(savedCritique);
-    if (savedScore) setScore(savedScore);
+    setDocument(localStorage.getItem("refinebot_doc") ?? "");
+    setFinalSummary(localStorage.getItem("refinebot_final") ?? "");
+    setFinalCritique(localStorage.getItem("refinebot_critique") ?? "");
+    setScore(Number(localStorage.getItem("refinebot_score") ?? 0));
+    setHydrated(true);
   }, []);
 
+  // --- Persist to localStorage ---
   useEffect(() => {
+    if (!hydrated) return;
+
     localStorage.setItem("refinebot_doc", document);
     localStorage.setItem("refinebot_final", finalSummary);
     localStorage.setItem("refinebot_critique", finalCritique);
     localStorage.setItem("refinebot_score", String(score));
-  }, [document, finalSummary, finalCritique, score]);
+  }, [document, finalSummary, finalCritique, score, hydrated]);
 
-  // --- Handlers ---
+  // --- Clear workspace ---
   const handleClear = () => {
-    if (window.confirm("Are you sure you want to clear the workspace?")) {
-      setDocument("");
-      setFinalSummary("");
-      setFinalCritique("");
-      setScore("N/A");
-      setDrafts([]);
+    if (!window.confirm("Are you sure you want to clear the workspace?")) return;
+
+    setDocument("");
+    setFinalSummary("");
+    setFinalCritique("");
+    setScore(0);
+    setDrafts([]);
+    setError(null);
+
+    if (typeof window !== "undefined") {
       localStorage.removeItem("refinebot_doc");
       localStorage.removeItem("refinebot_final");
       localStorage.removeItem("refinebot_critique");
@@ -61,9 +68,15 @@ export default function SummarizerPage() {
     }
   };
 
-  const handleSummarize = async () => {
+  // --- Stream summarization ---
+  const handleStreamSummarize = async () => {
     if (!document || document.trim().length < 100) {
       alert("Please enter at least 100 characters to summarize.");
+      return;
+    }
+
+    if (remaining <= 0) {
+      alert("You have reached your daily quota.");
       return;
     }
 
@@ -71,116 +84,118 @@ export default function SummarizerPage() {
     setDrafts([]);
     setFinalSummary("");
     setFinalCritique("");
-    setScore("N/A");
+    setScore(0);
+    setError(null);
 
     try {
       const response = await fetch(`${API_BASE}/summarize_stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          document: document,
-          max_refinement_steps: MAX_REFINEMENT_STEPS,
-        }),
+        body: JSON.stringify({ document, max_refinement_steps: 3 }),
         credentials: "include",
       });
 
-      const contentType = response.headers.get("content-type");
-
-      // --- Handle cache hits (JSON) ---
-      if (contentType && contentType.includes("application/json")) {
-        const data = await response.json();
-
-        if (data.status === "sqlite_fuzzy_cache" || data.status === "cached") {
-          setFinalSummary(data.final_summary);
-          setScore(data.final_judge_result?.score ?? "N/A");
-          setFinalCritique(data.final_judge_result?.critique ?? "");
-          setDrafts([{
-            summary: data.final_summary,
-            critique: data.final_judge_result?.critique ?? "",
-            score: data.final_judge_result?.score ?? "N/A"
-          }]);
-        }
-        setLoading(false);
-        return;
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Summarization failed");
       }
 
-      // --- Streaming AI response ---
-      setDrafts([{ summary: "Generating new summary...", critique: "", score: "N/A" }]);
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
+      // Read the entire response as text (works for cached single-line responses)
+      const text = await response.text();
+      const lines = text.split("\n").filter(Boolean);
 
-      if (!reader) return;
+      for (const line of lines) {
+        const payload: StreamEvent = JSON.parse(line);
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        switch (payload.event) {
+          case "refined_summary":
+            if (payload.summary) {
+              setDrafts((prev) => [
+                ...prev,
+                {
+                  summary: payload.summary ?? "",
+                  critique: payload.critique ?? "",
+                  score: payload.score ?? 0,
+                },
+              ]);
+            }
+            break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n").filter(line => line.trim() !== "");
+          case "judge_decision":
+            if (payload.critique || payload.score !== undefined) {
+              setDrafts((prev) => [
+                ...prev,
+                {
+                  summary: "",
+                  critique: payload.critique ?? "",
+                  score: payload.score ?? 0,
+                },
+              ]);
+            }
+            break;
 
-        for (const line of lines) {
-          const payload = JSON.parse(line);
-
-          if (payload.event === "initial_summary" || payload.event === "refined_summary") {
-            setDrafts(prev => [
+          case "final_summary":
+            setFinalSummary(payload.summary ?? "");
+            setFinalCritique(payload.critique ?? "");
+            setScore(payload.score ?? 0);
+            setDrafts((prev) => [
               ...prev,
-              { summary: payload.summary, critique: "", score: "N/A" }
+              {
+                summary: payload.summary ?? "",
+                critique: payload.critique ?? "",
+                score: payload.score ?? 0,
+              },
             ]);
-            setFinalSummary(payload.summary);
-          }
+            break;
 
-          if (payload.event === "judge_decision" || payload.event === "final_summary") {
-            setDrafts(prev => {
-              const updated = [...prev];
-              const last = updated[updated.length - 1];
-              if (last) {
-                last.critique = payload.critique ?? last.critique;
-                last.score = payload.score ?? last.score;
-              }
-              return updated;
-            });
-            if (payload.critique) setFinalCritique(payload.critique);
-            if (payload.score) setScore(payload.score);
-          }
+          case "error":
+            setError(payload.message ?? "Unknown error");
+            setDrafts((prev) => [
+              ...prev,
+              { summary: `Error: ${payload.message ?? "Unknown"}`, critique: "", score: 0 },
+            ]);
+            break;
         }
       }
 
+      decrementLocalQuota();
       await refreshQuota();
-
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      setDrafts([{ summary: `Error: ${msg}`, critique: "", score: "N/A" }]);
+      setError(msg);
+      setDrafts([{ summary: `Error: ${msg}`, critique: "", score: 0 }]);
     } finally {
       setLoading(false);
     }
   };
 
+
+  // --- Render ---
   return (
     <AuthGuard>
       <div className="p-8 max-w-5xl mx-auto space-y-8">
         <h1 className="text-3xl font-bold">RefineBot Summarizer</h1>
 
-        {/* Input area */}
         <DocumentInput
           document={document}
           setDocument={setDocument}
           onClear={handleClear}
-          onSummarize={handleSummarize}
-          loading={loading}
+          onStreamSummarize={handleStreamSummarize}
+          loading={loading || remaining <= 0}
         />
 
-        {/* Quota / Metrics */}
-        <QuotaBadge stepsTaken={stepsTaken} maxSteps={quotaMax} />
+        <div className="flex items-center gap-4">
+          <QuotaBadge stepsTaken={limit - remaining} maxSteps={limit} />
+          {quotaLoading && <span className="text-sm text-gray-400">Loading quota...</span>}
+        </div>
 
-        {/* Draft / Streaming summaries */}
+        {error && <div className="p-4 bg-red-100 text-red-800 rounded-lg">{error}</div>}
+
+        {/* Draft streaming */}
         <SummaryStream drafts={drafts} />
 
-        {/* Final summary output */}
-        <SummaryOutput
-          finalSummary={finalSummary}
-          finalCritique={finalCritique}
-          score={score}
-        />
+        {/* Always show final summary */}
+        <SummaryOutput finalSummary={finalSummary} finalCritique={finalCritique} score={score} />
       </div>
     </AuthGuard>
   );

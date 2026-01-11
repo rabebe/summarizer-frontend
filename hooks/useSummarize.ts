@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 /* ---------- Types ---------- */
 
@@ -9,24 +9,28 @@ export interface SummarizeRequest {
   max_refinement_steps?: number;
 }
 
+export type StreamEventType =
+  | "refined_summary"
+  | "judge_decision"
+  | "final_summary"
+  | "error";
+
 export interface StreamEvent {
-  event: string;
+  event: StreamEventType;
   summary?: string;
-  score?: number | string;
+  score?: number;
   critique?: string;
-  refinement_needed?: boolean;
   message?: string;
-  timestamp: string;
+  timestamp?: string;
 }
 
 /* ---------- Config ---------- */
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE!;
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE!;
 
-/* ---------- NDJSON helper ---------- */
+/* ---------- NDJSON Streaming Helper ---------- */
 
-export async function streamNDJSON<T>(
+async function streamNDJSON<T>(
   response: Response,
   onEvent: (event: T) => void
 ) {
@@ -57,17 +61,27 @@ export async function streamNDJSON<T>(
 
 /* ---------- Hook ---------- */
 
+export interface DraftEntry {
+  summary: string;
+  critique: string;
+  score: number;
+}
+
 export function useSummarize() {
-  const [summary, setSummary] = useState("");
-  const [events, setEvents] = useState<StreamEvent[]>([]);
+  const [drafts, setDrafts] = useState<DraftEntry[]>([]);
+  const [finalSummary, setFinalSummary] = useState<string>("");
+  const [finalCritique, setFinalCritique] = useState<string>("");
+  const [finalScore, setFinalScore] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const summarize = async (data: SummarizeRequest) => {
+  const summarize = useCallback(async (data: SummarizeRequest) => {
     setLoading(true);
     setError(null);
-    setSummary("");
-    setEvents([]);
+    setDrafts([]);
+    setFinalSummary("");
+    setFinalCritique("");
+    setFinalScore(null);
 
     try {
       const response = await fetch(`${API_BASE}/summarize_stream`, {
@@ -83,28 +97,64 @@ export function useSummarize() {
       }
 
       await streamNDJSON<StreamEvent>(response, (event) => {
-        setEvents((prev) => [...prev, event]);
+        switch (event.event) {
+          case "refined_summary":
+            if (event.summary) {
+              setDrafts((prev) => [
+                ...prev,
+                {
+                  summary: event.summary ?? "",
+                  critique: event.critique ?? "",
+                  score: event.score ?? 0,
+                },
+              ]);
+            }
+            break;
 
-        if (event.event === "final_summary" && event.summary) {
-          setSummary(event.summary);
-        }
+          case "judge_decision":
+            if (event.critique || event.score !== undefined) {
+              setDrafts((prev) => [
+                ...prev,
+                { summary: "", critique: event.critique ?? "", score: event.score ?? 0 },
+              ]);
+            }
+            break;
 
-        if (event.event === "error" && event.message) {
-          setError(event.message);
+          case "final_summary":
+            if (event.summary) setFinalSummary(event.summary);
+            if (event.critique) setFinalCritique(event.critique);
+            if (event.score !== undefined) setFinalScore(event.score);
+
+            // Also add final summary to drafts
+            setDrafts((prev) => [
+              ...prev,
+              {
+                summary: event.summary ?? "",
+                critique: event.critique ?? "",
+                score: event.score ?? 0,
+              },
+            ]);
+            break;
+
+          case "error":
+            if (event.message) setError(event.message);
+            break;
         }
       });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unknown error occurred"
-      );
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      setDrafts((prev) => [...prev, { summary: `Error: ${msg}`, critique: "", score: 0 }]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return {
-    summary,
-    events,
+    drafts,
+    finalSummary,
+    finalCritique,
+    finalScore,
     loading,
     error,
     summarize,

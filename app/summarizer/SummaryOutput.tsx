@@ -6,27 +6,26 @@ import ReactMarkdown from "react-markdown";
 interface SummaryOutputProps {
   finalSummary: string;
   finalCritique: string;
-  score: string | number;
+  score: number;
 }
 
 export default function SummaryOutput({ finalSummary, finalCritique, score }: SummaryOutputProps) {
   const [copied, setCopied] = useState(false);
 
-  if (!finalSummary) return null;
-
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(finalSummary);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000); // Reset after 2s
+      setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy!", err);
     }
   };
 
+  // Always render final summary and evaluation
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* AI Summary Box */}
+      {/* AI Summary */}
       <div className="relative group p-6 bg-bg rounded-2xl border border-primary shadow-sm hover:shadow-md transition-shadow">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-primary">AI Summary</h2>
@@ -38,7 +37,7 @@ export default function SummaryOutput({ finalSummary, finalCritique, score }: Su
           </button>
         </div>
         <div className="prose prose-fg max-w-none prose-p:leading-relaxed prose-pre:bg-bg/80">
-          <ReactMarkdown>{finalSummary}</ReactMarkdown>
+          {finalSummary ? <ReactMarkdown>{finalSummary}</ReactMarkdown> : <p className="text-gray-400 italic">No summary yet.</p>}
         </div>
       </div>
 
@@ -50,7 +49,7 @@ export default function SummaryOutput({ finalSummary, finalCritique, score }: Su
             <p className="text-accent text-xs font-medium uppercase tracking-tighter">Academic Quality Audit</p>
           </div>
           <div className="flex flex-col items-center justify-center bg-bg h-16 w-16 rounded-full shadow-sm border border-primary">
-            <span className="text-secondary text-2xl font-black leading-none">{score || "N/A"}</span>
+            <span className="text-secondary text-2xl font-black leading-none">{score ?? "N/A"}</span>
             <span className="text-xs font-bold text-accent uppercase">/ 10</span>
           </div>
         </div>

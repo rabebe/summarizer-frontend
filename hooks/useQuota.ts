@@ -3,44 +3,62 @@
 import { useState, useEffect, useCallback } from "react";
 import { API_BASE } from "@/lib/api";
 
-export function useQuota(initialMaxSteps: number = 3) {
-  const [stepsTaken, setStepsTaken] = useState(0);
-  const [maxSteps, setMaxSteps] = useState(initialMaxSteps);
+export function useQuota(initialLimit: number = 3) {
+  const [remaining, setRemaining] = useState(initialLimit); // quota left
+  const [limit, setLimit] = useState(initialLimit);         // total quota
   const [loading, setLoading] = useState(true);
-  
+  const [error, setError] = useState<string | null>(null);
+
   /**
-   * Fetches the current usage count from the Flask backend.
-   * This ensures the UI reflects the actual Redis state.
+   * Fetch the current quota from backend
    */
   const refreshQuota = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const res = await fetch(`${API_BASE}/me/quota`, { 
-        credentials: "include" 
+      const res = await fetch(`${API_BASE}/me/quota`, {
+        credentials: "include",
       });
-      
-      if (res.ok) {
-        const data = await res.json();
-        // data.count should be the number of summaries used today (e.g., 0, 1, 2, or 3)
-        setStepsTaken(data.count);
-        setMaxSteps(data.limit);
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch quota");
       }
+
+      const data = await res.json();
+      setRemaining(data.remaining);
+      setLimit(data.limit);
     } catch (err) {
-      console.error("Failed to sync quota with backend:", err);
+      console.error("Quota fetch error:", err);
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Sync with backend on initial load
+  /**
+   * Call after a successful new summary to decrement remaining quota locally
+   */
+  const decrementLocalQuota = useCallback(() => {
+    setRemaining((prev) => Math.max(prev - 1, 0));
+  }, []);
+
+  /**
+   * Check if user can submit a new summary
+   */
+  const canSubmit = remaining > 0 && !loading;
+
+  // Initial load
   useEffect(() => {
     refreshQuota();
   }, [refreshQuota]);
 
-  return { 
-    stepsTaken, 
-    maxSteps, 
-    setMaxSteps, 
-    refreshQuota, // Call after a successful summary
-    loading 
+  return {
+    remaining,
+    limit,
+    loading,
+    error,
+    canSubmit,
+    refreshQuota,      // sync with backend
+    decrementLocalQuota, // call after successful submission
   };
 }
