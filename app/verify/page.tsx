@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { verifyEmail as verifyEmailAPI } from "@/lib/api";
 
-export default function VerifyPage() {
+function VerifyContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const router = useRouter();
@@ -17,17 +17,16 @@ export default function VerifyPage() {
   );
 
   useEffect(() => {
-    if (!token) return; // no token → show error
+    if (!token) return;
 
     const verifyEmail = async () => {
       try {
-        await verifyEmailAPI(token); // we don't need the returned data
+        await verifyEmailAPI(token);
         setStatus("success");
         setMessage("Email verified successfully! Redirecting to login...");
         setTimeout(() => router.push("/login"), 2000);
       } catch (err: unknown) {
         setStatus("error");
-        // safely get message if err is Error
         const errorMessage =
           err instanceof Error ? err.message : "Verification failed";
         setMessage(errorMessage);
@@ -43,5 +42,13 @@ export default function VerifyPage() {
       {status === "success" && <p className="text-green-400">{message}</p>}
       {status === "error" && <p className="text-red-400">{message}</p>}
     </div>
+  );
+}
+
+export default function VerifyPageWrapper() {
+  return (
+    <Suspense fallback={<p>Loading verification...</p>}>
+      <VerifyContent />
+    </Suspense>
   );
 }
