@@ -1,36 +1,126 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+**Summarizer Frontend**
+=======================
 
-## Getting Started
+The **Summarizer Frontend** is a Next.js/React application that allows users to submit text and receive AI-generated summaries. It integrates with **Summarizer/RefineBot Backend API** and includes user **email verification** to ensure secure access.
 
-First, run the development server:
+* * * * *
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+**Features**
+------------
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+-   Submit text for summarization
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+-   Instant display of AI-generated summaries
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+-   Email verification for users after signup
 
-## Learn More
+-   Responsive design for desktop and mobile
 
-To learn more about Next.js, take a look at the following resources:
+-   Error handling and loading indicators for better UX
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+-   Direct integration with the backend API using the **Fetch API**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+* * * * *
 
-## Deploy on Vercel
+**Tech Stack**
+--------------
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+-   **Next.js** (React framework)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+-   **TypeScript** for type safety
+
+-   **Tailwind CSS** for styling
+
+-   **Fetch API** for all backend requests (summarization, email verification)
+
+-   Deployed on **Vercel**
+
+* * * * *
+
+**Project Structure**
+---------------------
+
+
+* * * * *
+
+**Setup Instructions**
+----------------------
+
+1.  **Clone the repository:**
+
+`git clone https://github.com/rabebe/summarizer-frontend.git cd summarizer-frontend `
+
+1.  **Install dependencies:**
+
+`npm install `
+
+1.  **Create a `.env.local` file** in the project root with the following variables:
+
+`NEXT_PUBLIC_API_URL=https://your-backend-api.com
+
+
+1.  **Start the development server:**
+
+`npm run dev `
+
+The app will be available at `http://localhost:3000`.
+
+* * * * *
+
+**Email Verification Flow**
+---------------------------
+
+1.  User signs up or submits their email in the frontend.
+
+2.  Backend generates a verification token and sends an email.
+
+3.  The email link points to `/verify-email?token=<token>` on the frontend.
+
+4.  Frontend extracts the token and calls the backend verification endpoint using **Fetch**.
+
+5.  Verification success or failure is displayed to the user.
+
+* * * * *
+
+**Available Scripts**
+---------------------
+
+| Script | Description |
+| --- | --- |
+| `npm run dev` | Starts the development server |
+| `npm run build` | Builds the production version |
+| `npm run start` | Runs the production build locally |
+| `npm run lint` | Runs ESLint to check code quality |
+| `npm run format` | Runs Prettier to format code |
+
+* * * * *
+
+**Deployment**
+--------------
+
+-   **Build the app for production:**
+
+`npm run build `
+
+-   Deploy the `.next` build folder to **Vercel**, **Netlify**, or your preferred hosting platform.
+
+-   Make sure `.env` variables are set in your hosting environment.
+
+* * * * *
+
+**Contributing**
+----------------
+
+1.  Fork the repository
+
+2.  Create a branch for your feature (`git checkout -b feature/your-feature`)
+
+3.  Make your changes
+
+4.  Commit your changes (`git commit -m "Add feature"`)
+
+5.  Push your branch (`git push origin feature/your-feature`)
+
+6.  Open a Pull Request
+
+* * * * *
