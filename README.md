@@ -37,6 +37,7 @@ The application handles authentication, email verification, loading states, erro
 
 ## System Architecture
 
+### Flowchart – Data Flow Overview
 ```mermaid
 flowchart LR
     U[User Browser]
@@ -49,11 +50,14 @@ flowchart LR
     FE -->|HTTP + NDJSON| API
     API --> R
     API --> DB
+```
 
+### Sequence Diagram – Streaming Summarization Workflow
+```mermaid
 sequenceDiagram
-    participant U as User
-    participant FE as Frontend
-    participant API as Backend API
+    participant U as "User"
+    participant FE as "Frontend"
+    participant API as "Backend API"
 
     U->>FE: Submit text
     FE->>API: POST /api/summarize-stream
@@ -73,7 +77,7 @@ This frontend integrates with the Summarizer Backend, which is responsible for:
 - Authentication, quotas, and caching
 
 ### Backend Repository
-https://github.com/rabebe/chatbot
+https://github.com/rabebe/ai-chatbot
 
 ## Project Structure
 ```text
@@ -166,4 +170,4 @@ To deploy:
 ---
 
 ## Related Repositories
-- Summarizer Backend: https://github.com/rabebe/chatbot
+- Summarizer Backend: https://github.com/rabebe/ai-chatbot
