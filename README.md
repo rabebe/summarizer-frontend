@@ -1,6 +1,6 @@
-# Summarizer Frontend
+# Summarization Workflow Frontend
 
-The **Summarizer Frontend** is a Next.js/React application that allows users to submit text and receive AI-generated summaries. It integrates with **Summarizer/RefineBot Backend API** and includes user **email verification** to ensure secure access.
+The **Summarization Workflow Frontend** is a Next.js/React application that allows users to submit text and receive AI-generated summaries. It integrates with **Summarizer/RefineBot Backend API** and includes user **email verification** to ensure secure access.
 
 ---
 
@@ -9,6 +9,11 @@ The **Summarizer Frontend** is a Next.js/React application that allows users to 
 Users submit long-form text (articles, blog posts, reports) and observe the summarization process in real time as the backend refines drafts, evaluates them with an LLM-as-a-Judge, and emits a final approved summary.
 
 The application handles authentication, email verification, loading states, error handling, and incremental rendering of streamed responses from the backend.
+
+---
+
+## Interface Preview
+![Interface Preview](assets/summarizer-ui.png)
 
 ---
 
@@ -21,6 +26,11 @@ The application handles authentication, email verification, loading states, erro
 - Clear loading, error, and success states
 - Responsive UI for desktop and mobile
 - Secure communication with backend API via HTTP-only JWT cookies
+
+---
+
+## Live Workflow Demo
+![Workflow Demo](assets/summarizer-workflow.gif)
 
 ---
 
@@ -88,7 +98,7 @@ src/
 │   └── layout.tsx         # App layout
 ├── components/
 │   ├── TextInput.tsx      # Text submission form
-│   ├── SummaryStream.tsx # Streaming summary renderer
+│   ├── SummaryStream.tsx  # Streaming summary renderer
 │   └── LoadingState.tsx
 ├── lib/
 │   └── api.ts             # Backend API helpers
@@ -171,3 +181,7 @@ To deploy:
 
 ## Related Repositories
 - Summarizer Backend: https://github.com/rabebe/ai-chatbot
+
+---
+## License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
