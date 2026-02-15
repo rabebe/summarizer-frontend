@@ -30,7 +30,7 @@ The application handles authentication, email verification, loading states, erro
 ---
 
 ## Live Workflow Demo
-![Workflow Demo](assets/summarizer-workflow.gif)
+![Workflow Demo](assets/summarizer-workflow-v2.gif)
 
 ---
 
